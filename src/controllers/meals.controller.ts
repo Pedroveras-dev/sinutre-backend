@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../prisma';
 import { HttpError } from '../utils/http';
+import { parseId } from './foods.controller';
 
 export async function meals(
   req: Request,
@@ -25,27 +26,16 @@ export async function meals(
   });
 
   const result = meals.map((meal) => {
+    // Soma os macros GRAVADOS em cada item no momento em que a refeição foi
+    // criada (meal_foods), e não os valores atuais do alimento. Assim, editar
+    // um alimento depois não reescreve o histórico de refeições.
     const totals = meal.foods.reduce(
       (acc, item) => {
-        const factor = item.foodG / 100;
-
         acc.grams += item.foodG;
-
-        acc.calories +=
-          item.food.caloriesPer100g *
-          factor;
-
-        acc.carbs +=
-          item.food.carbsPer100g *
-          factor;
-
-        acc.proteins +=
-          item.food.proteinPer100g *
-          factor;
-
-        acc.fats +=
-          item.food.fatPer100g *
-          factor;
+        acc.calories += item.calories;
+        acc.carbs += item.carbs;
+        acc.proteins += item.protein;
+        acc.fats += item.fat;
 
         return acc;
       },
@@ -179,3 +169,29 @@ export async function createMeal(
   return res.status(201).json(meal);
 }
 
+// DELETE /meals/:id
+// Apaga a refeição do usuário autenticado e os itens dela.
+export async function deleteMeal(
+  req: Request,
+  res: Response,
+) {
+  const id = parseId(req.params.id);
+
+  // Refeição de outro usuário responde 404, como se não existisse.
+  const meal = await prisma.meal.findFirst({
+    where: { id, userId: req.userId! },
+  });
+
+  if (!meal) {
+    throw new HttpError(404, 'Refeição não encontrada.');
+  }
+
+  // Os itens (meal_foods) referenciam a refeição, então saem primeiro,
+  // na mesma transação: ou apaga tudo, ou não apaga nada.
+  await prisma.$transaction([
+    prisma.mealFood.deleteMany({ where: { mealId: id } }),
+    prisma.meal.delete({ where: { id } }),
+  ]);
+
+  return res.status(204).end();
+}
