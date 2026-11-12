@@ -127,7 +127,7 @@ por projeto e também suspende quando ocioso.
 3. Preencha no painel: `DATABASE_URL`, `GITHUB_CLIENT_ID`,
    `GITHUB_CLIENT_SECRET`, `GITHUB_CALLBACK_URL`
    (`https://SEU-BACKEND.onrender.com/auth/github/callback`) e `FRONTEND_URL`
-   (`https://SEU-FRONTEND.onrender.com`). O `JWT_SECRET` é gerado pelo Render.
+   (URL do frontend na Vercel ou no Render, sem `/` final). O `JWT_SECRET` é gerado pelo Render.
 4. **GitHub:** crie um OAuth App **de produção** com *Homepage URL* = URL do
    frontend e *Authorization callback URL* = o mesmo valor de
    `GITHUB_CALLBACK_URL`.
