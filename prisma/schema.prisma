@@ -93,10 +93,15 @@ model WeightLog {
   @@map("weight_logs")
 }
 
+// Um usuário pode ter vários registros (histórico), mas no máximo UM ativo:
+// isActive = true e closedAt = null. Ao mudar a meta, o registro ativo é
+// encerrado e um novo é criado (ver src/controllers/calorieGoal.controller.ts).
 model HealthData {
   id               Int       @id @default(autoincrement())
-  targetDietDaily  Int       @map("target_diet_daily")
-  levelActivity    String    @map("level_activity") // LEVELCHOICE
+  targetDietDaily  Int       @map("target_diet_daily") // meta diária em kcal
+  // Opcional: a tela de meta de calorias não coleta o nível de atividade,
+  // então não gravamos um valor inventado.
+  levelActivity    String?   @map("level_activity") // LEVELCHOICE
   createdAt        DateTime  @default(now()) @map("created_at")
   closedAt         DateTime? @map("closed_at")
   isActive         Boolean   @default(true) @map("is_active")
@@ -104,5 +109,6 @@ model HealthData {
   userId           Int       @map("user_id")
   user             User      @relation(fields: [userId], references: [id])
 
+  @@index([userId, isActive])
   @@map("health_data")
 }
