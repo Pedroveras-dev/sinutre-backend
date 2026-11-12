@@ -20,8 +20,9 @@ Stack: **Node.js + TypeScript + Express + Prisma + PostgreSQL**, com login via
 | Rotas `GET /calorie-goal` e `PUT /calorie-goal` | `src/routes/calorieGoal.routes.ts`, `src/controllers/calorieGoal.controller.ts` |
 | Limites da meta (500–10000 kcal) | `src/constants/calorieGoal.ts` |
 | Erros em rotas `async` não derrubam mais o servidor | `src/utils/http.ts` |
-| Testes de integração | `tests/calorieGoal.test.ts` |
+| Testes de integração | `tests/calorieGoal.test.ts`, `tests/foodsAndMeals.test.ts` |
 | PostgreSQL no lugar do SQLite + deploy | `prisma/`, `render.yaml` |
+| Editar e apagar alimentos; apagar refeições | `src/controllers/foods.controller.ts`, `src/controllers/meals.controller.ts` |
 
 ### Meta diária de calorias
 
@@ -45,6 +46,26 @@ valores) e fica em `HealthData.targetDietDaily`, modelo que já existia.
 |---|---|---|---|
 | `GET /calorie-goal` | Bearer JWT | — | `{ "caloriesGoal": 2000 \| null, "updatedAt": "...", "limits": { "min": 500, "max": 10000 } }` |
 | `PUT /calorie-goal` | Bearer JWT | `{ "caloriesGoal": 2000 }` | mesmo formato; `400` se inválido; `401` sem token |
+
+### Editar e apagar alimentos e refeições
+
+O original só tinha cadastro e listagem. Este fork acrescenta:
+
+| Rota | Comportamento |
+|---|---|
+| `PUT /foods/:id` | Atualiza um alimento do usuário autenticado |
+| `DELETE /foods/:id` | Apaga o alimento; `409` com `mealsCount` se ele for usado em refeições |
+| `DELETE /meals/:id` | Apaga a refeição e seus itens, em uma transação |
+
+- **Dono:** alimento ou refeição de outro usuário responde `404`, igual a um
+  id inexistente.
+- **Validação:** `POST` e `PUT /foods` exigem nome (até 100 caracteres) e os
+  quatro macros como números ≥ 0.
+- **Histórico preservado:** `GET /meals` soma os macros gravados em cada item
+  (`meal_foods`) quando a refeição foi criada. Editar um alimento vale para
+  as próximas refeições e não reescreve as antigas.
+- `GET /foods` sem `search` devolve todos os alimentos (antes, só 10); com
+  `search` continua limitado a 10 sugestões.
 
 ### Demais rotas (já existiam)
 
@@ -96,7 +117,9 @@ TEST_DATABASE_URL="postgresql://..." npm test   # apaga os dados do banco de tes
 
 Os testes sobem a API numa porta livre e verificam: `401` sem token ou com
 token inválido, estado sem meta, cadastro e persistência, rejeição de
-entradas inválidas, isolamento entre dois usuários e registro ativo único.
+entradas inválidas, isolamento entre dois usuários e registro ativo único;
+e, para alimentos e refeições, edição, exclusão, bloqueio de alimento em uso
+(`409`) e preservação do histórico.
 
 Teste manual (com um token obtido no login):
 
@@ -141,4 +164,4 @@ O HTTPS é fornecido pelo Render. O CORS aceita apenas a origem de
 - O JWT volta ao frontend na query string (`/?token=`) e fica no `localStorage`.
 - `MealFood` tem chave `(mealId, foodId)`: o mesmo alimento não pode aparecer
   duas vezes na mesma refeição.
-- Não há edição nem exclusão de alimentos e refeições.
+- Não há edição de refeições (só exclusão).
