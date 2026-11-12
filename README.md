@@ -10,8 +10,8 @@ Stack: **Node.js + TypeScript + Express + Prisma + PostgreSQL**, com login via
 > calorias por usuário** e a preparação para deploy.
 >
 > - Frontend deste sistema: <https://github.com/Pedroveras-dev/sinutre-frontend>
-> - API publicada: _preencher após o deploy_
-> - Site publicado: _preencher após o deploy_
+> - API publicada: <https://sinutre-backend.onrender.com> (verificação: [`/health`](https://sinutre-backend.onrender.com/health))
+> - Site publicado: <https://sinutre-frontend-alpha.vercel.app>
 
 ## O que este fork acrescenta
 
