@@ -5,80 +5,25 @@
 // Rodar: npm test
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { execSync } from 'node:child_process';
-import type { Server } from 'node:http';
-import type { AddressInfo } from 'node:net';
+import { startTestApp, type TestApp } from './helpers';
 
-// As variáveis precisam existir ANTES de importar o app (src/config/env.ts
-// lê process.env na importação). O dotenv não sobrescreve o que já existe.
-//
-// Os testes APAGAM os dados do banco que usam, então exigem um banco
-// separado, informado em TEST_DATABASE_URL (nunca usam DATABASE_URL).
-if (!process.env.TEST_DATABASE_URL) {
-  throw new Error(
-    'Defina TEST_DATABASE_URL com um banco PostgreSQL só para testes. ' +
-      'Ex.: TEST_DATABASE_URL="postgresql://..." npm test',
-  );
-}
-process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
-process.env.JWT_SECRET = 'segredo-apenas-para-testes';
-process.env.GITHUB_CLIENT_ID = 'teste';
-process.env.GITHUB_CLIENT_SECRET = 'teste';
-process.env.GITHUB_CALLBACK_URL = 'http://localhost/callback';
-
-let server: Server;
-let baseUrl: string;
+let ctx: TestApp;
 let tokenA: string;
 let tokenB: string;
 let userAId: number;
 let userBId: number;
-let closeDb: () => Promise<void>;
 
 before(async () => {
-  execSync('npx prisma migrate deploy', { stdio: 'ignore', env: process.env });
-
-  const { app } = await import('../src/app');
-  const { prisma } = await import('../src/prisma');
-  const jwt = (await import('jsonwebtoken')).default;
-
-  // Banco limpo a cada execução (ordem respeita as chaves estrangeiras).
-  await prisma.mealFood.deleteMany();
-  await prisma.meal.deleteMany();
-  await prisma.food.deleteMany();
-  await prisma.healthData.deleteMany();
-  await prisma.weightLog.deleteMany();
-  await prisma.user.deleteMany();
-
-  const userA = await prisma.user.create({
-    data: { githubId: 'a', githubLogin: 'usuario-a', name: 'Usuário A' },
-  });
-  const userB = await prisma.user.create({
-    data: { githubId: 'b', githubLogin: 'usuario-b', name: 'Usuário B' },
-  });
-  userAId = userA.id;
-  userBId = userB.id;
-  tokenA = jwt.sign({ sub: userA.id }, process.env.JWT_SECRET!);
-  tokenB = jwt.sign({ sub: userB.id }, process.env.JWT_SECRET!);
-  closeDb = () => prisma.$disconnect();
-
-  server = app.listen(0);
-  baseUrl = `http://localhost:${(server.address() as AddressInfo).port}`;
+  ctx = await startTestApp();
+  ({ tokenA, tokenB, userAId, userBId } = ctx);
 });
 
 after(async () => {
-  server?.close();
-  await closeDb?.();
+  await ctx?.close();
 });
 
 function request(method: string, token?: string, body?: unknown) {
-  return fetch(`${baseUrl}/calorie-goal`, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  return ctx.request(method, '/calorie-goal', token, body);
 }
 
 test('sem token: GET e PUT respondem 401', async () => {
@@ -152,7 +97,7 @@ test('isolamento: a meta de A não aparece para B, e userId no corpo é ignorado
 });
 
 test('atualizar mantém um único registro ativo e guarda o histórico', async () => {
-  const { prisma } = await import('../src/prisma');
+  const { prisma } = ctx;
 
   await request('PUT', tokenA, { caloriesGoal: 2100 });
   await request('PUT', tokenA, { caloriesGoal: 2300 });
