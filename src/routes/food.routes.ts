@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { requireAuth } from '../middlewares/auth.middleware';
 import { prisma } from '../prisma';
+import { asyncHandler } from '../utils/http';
 
 export const foodRouter = Router();
 
 //foods/
-foodRouter.get('/', requireAuth, async (req, res) => {
+foodRouter.get('/', requireAuth, asyncHandler(async (req, res) => {
   const search = String(req.query.search ?? '');
   const foods = await prisma.food.findMany({
     where: {
@@ -21,10 +22,10 @@ foodRouter.get('/', requireAuth, async (req, res) => {
   });
 
   return res.json(foods);
-});
+}));
 
 
-foodRouter.post('/', requireAuth, async (req, res) => {
+foodRouter.post('/', requireAuth, asyncHandler(async (req, res) => {
   const {
     name,
     caloriesPer100g,
@@ -45,4 +46,4 @@ foodRouter.post('/', requireAuth, async (req, res) => {
   });
 
   return res.status(201).json(food);
-});
+}));

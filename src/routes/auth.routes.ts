@@ -7,8 +7,10 @@ import {
   githubCallback,
 } from '../controllers/auth.controller';
 
+import { asyncHandler } from '../utils/http';
+
 export const authRoutes = Router();
 
-authRoutes.get('/github', redirectToGithub);
-authRoutes.get('/github/callback', githubCallback);
-authRoutes.get('/me', requireAuth, me);
+authRoutes.get('/github', asyncHandler(redirectToGithub));
+authRoutes.get('/github/callback', asyncHandler(githubCallback));
+authRoutes.get('/me', requireAuth, asyncHandler(me));

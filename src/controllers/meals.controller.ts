@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../prisma';
+import { HttpError } from '../utils/http';
 
 export async function meals(
   req: Request,
@@ -86,6 +87,14 @@ export async function createMeal(
     items,
   } = req.body;
 
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new HttpError(400, 'Informe ao menos um alimento na refeição.');
+  }
+
+  if (!eatTime || Number.isNaN(new Date(eatTime).getTime())) {
+    throw new HttpError(400, 'Data e horário da refeição inválidos.');
+  }
+
   const meal = await prisma.$transaction(
     async (tx) => {
       // Busca os alimentos envolvidos
@@ -103,7 +112,8 @@ export async function createMeal(
       });
 
       if (foods.length !== items.length) {
-        throw new Error(
+        throw new HttpError(
+          400,
           'Alimento não encontrado',
         );
       }
