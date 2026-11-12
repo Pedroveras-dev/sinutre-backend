@@ -1,0 +1,30 @@
+# Blueprint do Render (https://render.com/docs/blueprint-spec).
+# Cria o Web Service do backend no plano gratuito. O banco é um PostgreSQL
+# externo (Neon), informado em DATABASE_URL.
+services:
+  - type: web
+    name: sinutre-backend
+    runtime: node
+    plan: free
+    # --include=dev: o build precisa de typescript e da CLI do prisma.
+    buildCommand: npm ci --include=dev && npm run build
+    # O plano gratuito não tem preDeployCommand, então as migrations
+    # pendentes são aplicadas a cada inicialização, antes de subir a API.
+    startCommand: npx prisma migrate deploy && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # sync: false = valor digitado no painel do Render, fora do Git.
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: GITHUB_CALLBACK_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false

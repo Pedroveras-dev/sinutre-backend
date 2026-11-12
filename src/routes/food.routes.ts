@@ -13,6 +13,9 @@ foodRouter.get('/', requireAuth, asyncHandler(async (req, res) => {
       userId: req.userId!,
       name: {
         contains: search,
+        // No PostgreSQL o `contains` diferencia maiúsculas de minúsculas;
+        // 'insensitive' mantém a busca como era no SQLite ("fei" acha "Feijão").
+        mode: 'insensitive',
       }
     },
     take: 10,

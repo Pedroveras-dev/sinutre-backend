@@ -11,7 +11,16 @@ import type { AddressInfo } from 'node:net';
 
 // As variáveis precisam existir ANTES de importar o app (src/config/env.ts
 // lê process.env na importação). O dotenv não sobrescreve o que já existe.
-process.env.DATABASE_URL = process.env.TEST_DATABASE_URL ?? 'file:./test.db';
+//
+// Os testes APAGAM os dados do banco que usam, então exigem um banco
+// separado, informado em TEST_DATABASE_URL (nunca usam DATABASE_URL).
+if (!process.env.TEST_DATABASE_URL) {
+  throw new Error(
+    'Defina TEST_DATABASE_URL com um banco PostgreSQL só para testes. ' +
+      'Ex.: TEST_DATABASE_URL="postgresql://..." npm test',
+  );
+}
+process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
 process.env.JWT_SECRET = 'segredo-apenas-para-testes';
 process.env.GITHUB_CLIENT_ID = 'teste';
 process.env.GITHUB_CLIENT_SECRET = 'teste';

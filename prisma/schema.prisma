@@ -2,16 +2,21 @@
 // Para a aula, só User (login via GitHub) e Meal (cadastro de refeição) são exercitados,
 // mas o domínio completo é modelado aqui para refletir o PlantUML.
 //
-// Observação: o SQLite (via Prisma 5) não suporta enums. Os campos que no PlantUML
-// são GENDERCHOICE, MEALCHOICE e LEVELCHOICE ficam aqui como String e os valores
-// válidos são listados em src/constants/enums.ts e validados no controller.
+// Observação: os campos que no PlantUML são GENDERCHOICE, MEALCHOICE e
+// LEVELCHOICE ficam aqui como String; os valores válidos estão em
+// src/constants/enums.ts. (O projeto original usava SQLite, que não suporta
+// enums no Prisma 5; mantivemos String ao migrar para PostgreSQL para não
+// mudar o modelo de dados.)
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  // PostgreSQL: o banco fica fora do servidor da aplicação, então os dados
+  // sobrevivem a reinícios e novos deploys (o SQLite em arquivo se perderia
+  // no disco efêmero da hospedagem gratuita).
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

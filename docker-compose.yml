@@ -1,0 +1,18 @@
+# PostgreSQL local para desenvolvimento e testes (opcional).
+#   docker compose up -d
+# Alternativa sem Docker: usar um banco gratuito do Neon no .env.
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: sinutre
+      POSTGRES_PASSWORD: sinutre
+      POSTGRES_DB: sinutre
+    ports:
+      - "5432:5432"
+    volumes:
+      - sinutre-pgdata:/var/lib/postgresql/data
+      - ./docker/create-test-db.sql:/docker-entrypoint-initdb.d/create-test-db.sql:ro
+
+volumes:
+  sinutre-pgdata:
