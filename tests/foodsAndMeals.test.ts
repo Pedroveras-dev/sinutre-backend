@@ -200,3 +200,27 @@ test('GET /foods sem busca lista todos os alimentos, não só 10', async () => {
   const searched = await (await ctx.request('GET', '/foods?search=alimento', tokenB)).json();
   assert.equal(searched.length, 10);
 });
+
+test('POST /meals rejeita itens sem quantidade válida e tipo inválido com 400', async () => {
+  const food = await createFood(ctx.tokenA);
+  const base = {
+    type: 'lunch',
+    eatTime: '2026-11-11T15:30:00.000Z',
+    description: 'teste',
+  };
+  const invalidBodies = [
+    { ...base, items: [{ foodId: food.id }] }, // sem grams (antes: 500)
+    { ...base, items: [{ foodId: food.id, grams: 0 }] },
+    { ...base, items: [{ foodId: food.id, grams: '100' }] },
+    { ...base, items: [{ foodId: food.id, grams: 5001 }] },
+    { ...base, items: [{ grams: 100 }] }, // sem foodId
+    { ...base, type: 'banquete', items: [{ foodId: food.id, grams: 100 }] },
+  ];
+
+  const before = (await listMeals(ctx.tokenA)).length;
+  for (const body of invalidBodies) {
+    const res = await ctx.request('POST', '/meals', ctx.tokenA, body);
+    assert.equal(res.status, 400, `deveria rejeitar ${JSON.stringify(body)}`);
+  }
+  assert.equal((await listMeals(ctx.tokenA)).length, before);
+});

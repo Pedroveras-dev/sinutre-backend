@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../prisma';
 import { HttpError } from '../utils/http';
+import { MEAL_CHOICES } from '../constants/enums';
 import { parseId } from './foods.controller';
 
 export async function meals(
@@ -64,6 +65,9 @@ export async function meals(
   return res.json(result);
 }
 
+// Limite de sanidade por item (barra erros de digitação como 50000 g).
+const MAX_ITEM_GRAMS = 5000;
+
 export async function createMeal(
   req: Request,
   res: Response,
@@ -83,6 +87,29 @@ export async function createMeal(
 
   if (!eatTime || Number.isNaN(new Date(eatTime).getTime())) {
     throw new HttpError(400, 'Data e horário da refeição inválidos.');
+  }
+
+  if (!MEAL_CHOICES.includes(type)) {
+    throw new HttpError(400, 'Tipo de refeição inválido.');
+  }
+
+  // Cada item precisa de um alimento e de uma quantidade em gramas.
+  // Sem esta checagem, um item sem "grams" chegava ao banco e virava erro 500.
+  for (const item of items) {
+    if (!Number.isInteger(item?.foodId)) {
+      throw new HttpError(400, 'Alimento não encontrado');
+    }
+    if (
+      typeof item.grams !== 'number' ||
+      !Number.isFinite(item.grams) ||
+      item.grams <= 0 ||
+      item.grams > MAX_ITEM_GRAMS
+    ) {
+      throw new HttpError(
+        400,
+        `A quantidade de cada alimento deve ser maior que 0 e até ${MAX_ITEM_GRAMS} g.`,
+      );
+    }
   }
 
   const meal = await prisma.$transaction(
