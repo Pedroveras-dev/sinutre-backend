@@ -1,3 +1,4 @@
+# Alternativa ao Railway (hospedagem oficial do projeto, ver README).
 # Blueprint do Render (https://render.com/docs/blueprint-spec).
 # Cria o Web Service do backend no plano gratuito. O banco é um PostgreSQL
 # externo (Neon), informado em DATABASE_URL.
@@ -8,9 +9,9 @@ services:
     plan: free
     # --include=dev: o build precisa de typescript e da CLI do prisma.
     buildCommand: npm ci --include=dev && npm run build
-    # O plano gratuito não tem preDeployCommand, então as migrations
-    # pendentes são aplicadas a cada inicialização, antes de subir a API.
-    startCommand: npx prisma migrate deploy && npm start
+    # O npm start aplica as migrations pendentes antes de subir a API
+    # (o plano gratuito não tem preDeployCommand).
+    startCommand: npm start
     healthCheckPath: /health
     envVars:
       - key: NODE_VERSION
