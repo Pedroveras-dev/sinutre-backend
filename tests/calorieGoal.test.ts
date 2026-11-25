@@ -115,3 +115,12 @@ test('atualizar mantém um único registro ativo e guarda o histórico', async (
   assert.ok(closed.every((r) => r.closedAt !== null));
   assert.equal(records.filter((r) => r.targetDietDaily === 2300).length, 1);
 });
+
+test('GET / descreve a API e aponta o site, sem exigir login', async () => {
+  const res = await ctx.request('GET', '/');
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.name, 'SiNutre API');
+  assert.equal(body.health, '/health');
+  assert.ok(body.routes.includes('/profile'));
+});

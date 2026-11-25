@@ -13,6 +13,19 @@ export const app = express();
 app.use(cors({ origin: env.frontendUrl, credentials: true }));
 app.use(express.json());
 
+// Raiz: quem abre o link da API no navegador vê o que ela é e onde está o
+// site, em vez de "Cannot GET /".
+app.get('/', (_req, res) => {
+  res.json({
+    name: 'SiNutre API',
+    status: 'ok',
+    frontend: env.frontendUrl,
+    health: '/health',
+    routes: ['/auth/github', '/meals', '/foods', '/calorie-goal', '/profile'],
+    note: 'As rotas de dados exigem login (token Bearer).',
+  });
+});
+
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
