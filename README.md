@@ -6,12 +6,13 @@ Stack: **Node.js + TypeScript + Express + Prisma + PostgreSQL**, com login via
 **GitHub OAuth** e sessão por **JWT**.
 
 > Fork de [danilob/sinutre-backend](https://github.com/danilob/sinutre-backend)
-> (projeto didático do professor), com a funcionalidade **meta diária de
-> calorias por usuário** e a preparação para deploy.
+> (projeto didático do professor), desenvolvido como projeto final da disciplina.
 >
 > - Frontend deste sistema: <https://github.com/Pedroveras-dev/sinutre-frontend>
-> - API publicada: <https://sinutre-backend.onrender.com> (verificação: [`/health`](https://sinutre-backend.onrender.com/health))
-> - Site publicado: <https://sinutre-frontend-alpha.vercel.app>
+> - API publicada (Railway): <https://sinutre-backend-production-37ce0f19.up.railway.app> (verificação: [`/health`](https://sinutre-backend-production-37ce0f19.up.railway.app/health))
+> - Site publicado (Vercel): <https://sinutre-frontend-alpha.vercel.app>
+>
+> A lista de funcionalidades por item do enunciado está no README do frontend.
 
 ## O que este fork acrescenta
 
@@ -20,9 +21,11 @@ Stack: **Node.js + TypeScript + Express + Prisma + PostgreSQL**, com login via
 | Rotas `GET /calorie-goal` e `PUT /calorie-goal` | `src/routes/calorieGoal.routes.ts`, `src/controllers/calorieGoal.controller.ts` |
 | Limites da meta (500–10000 kcal) | `src/constants/calorieGoal.ts` |
 | Erros em rotas `async` não derrubam mais o servidor | `src/utils/http.ts` |
-| Testes de integração | `tests/calorieGoal.test.ts`, `tests/foodsAndMeals.test.ts` |
-| PostgreSQL no lugar do SQLite + deploy | `prisma/`, `render.yaml` |
+| Rotas `GET /profile` e `PUT /profile` (altura e peso) | `src/routes/profile.routes.ts`, `src/controllers/profile.controller.ts`, `src/constants/profile.ts` |
+| Testes de integração (26) | `tests/*.test.ts` |
+| PostgreSQL no lugar do SQLite + deploy no Railway | `prisma/`, `package.json` |
 | Editar e apagar alimentos; apagar refeições | `src/controllers/foods.controller.ts`, `src/controllers/meals.controller.ts` |
+| Validação do tipo e dos itens da refeição (antes, item sem quantidade dava `500`) | `src/controllers/meals.controller.ts` |
 
 ### Meta diária de calorias
 
@@ -46,6 +49,23 @@ valores) e fica em `HealthData.targetDietDaily`, modelo que já existia.
 |---|---|---|---|
 | `GET /calorie-goal` | Bearer JWT | — | `{ "caloriesGoal": 2000 \| null, "updatedAt": "...", "limits": { "min": 500, "max": 10000 } }` |
 | `PUT /calorie-goal` | Bearer JWT | `{ "caloriesGoal": 2000 }` | mesmo formato; `400` se inválido; `401` sem token |
+
+### Altura e peso
+
+Ficam no modelo `WeightLog` (tabela `weight_logs`), que já existia no
+diagrama e não era usado. Altura em **centímetros**, peso em **quilogramas**.
+
+- Cada alteração cria um registro novo; o mais recente é o atual. Salvar os
+  mesmos valores não cria registro repetido.
+- **Validação:** números JSON com altura entre **50 e 250 cm** e peso entre
+  **20 e 400 kg** (limites contra erro de digitação, como `1.75` em metros).
+  Os valores são arredondados para 1 casa decimal. Fora disso: `400`.
+- O IMC e a faixa são calculados no frontend a partir destes dados.
+
+| Rota | Auth | Corpo | Resposta |
+|---|---|---|---|
+| `GET /profile` | Bearer JWT | — | `{ "heightCm": 175 \| null, "weightKg": 72.5 \| null, "updatedAt": "...", "limits": {...} }` |
+| `PUT /profile` | Bearer JWT | `{ "heightCm": 175, "weightKg": 72.5 }` | mesmo formato; `400` se inválido; `401` sem token |
 
 ### Editar e apagar alimentos e refeições
 
@@ -75,7 +95,7 @@ O original só tinha cadastro e listagem. Este fork acrescenta:
 | `GET /auth/github` → `GET /auth/github/callback` | Login OAuth; ao final redireciona para `FRONTEND_URL/?token=<jwt>` |
 | `GET /auth/me` | Usuário autenticado |
 | `GET /foods?search=` · `POST /foods` | Alimentos do usuário |
-| `GET /meals` · `POST /meals` | Refeições do usuário, com totais de macros |
+| `GET /meals` · `POST /meals` | Refeições do usuário, com totais de macros. `POST` valida o tipo (`breakfast`, `lunch`, `snack`, `dinner`, `other`) e cada item (`foodId` e `grams` entre 0 e 5000) |
 
 ## Instalação e execução local
 
@@ -117,9 +137,10 @@ TEST_DATABASE_URL="postgresql://..." npm test   # apaga os dados do banco de tes
 
 Os testes sobem a API numa porta livre e verificam: `401` sem token ou com
 token inválido, estado sem meta, cadastro e persistência, rejeição de
-entradas inválidas, isolamento entre dois usuários e registro ativo único;
-e, para alimentos e refeições, edição, exclusão, bloqueio de alimento em uso
-(`409`) e preservação do histórico.
+entradas inválidas, isolamento entre dois usuários e registro ativo único
+(meta, altura e peso); e, para alimentos e refeições, edição, exclusão,
+bloqueio de alimento em uso (`409`), validação dos itens da refeição e
+preservação do histórico.
 
 Teste manual (com um token obtido no login):
 
@@ -129,35 +150,43 @@ curl -X PUT -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json
      -d '{"caloriesGoal": 2000}' http://localhost:3333/calorie-goal
 ```
 
-## Deploy (Render + Neon, gratuito)
+## Deploy (Railway + PostgreSQL)
 
-**Por que PostgreSQL:** o plano gratuito do Render tem disco efêmero e não
-permite disco persistente; um arquivo SQLite seria apagado a cada deploy,
-reinício ou hibernação. O banco fica então no Neon (PostgreSQL gratuito, sem
-prazo de expiração), fora do servidor da aplicação.
+O backend roda no **Railway**, como pede o guia de deploy da disciplina. O
+banco é um PostgreSQL externo (no meu caso, Neon; o guia usa Supabase, e
+qualquer um serve): o Railway só recebe a `DATABASE_URL`.
 
-**Limitações do gratuito:** o backend hiberna após 15 min sem acesso e a
-primeira requisição seguinte leva cerca de 1 minuto; o Neon gratuito tem 1 GB
-por projeto e também suspende quando ocioso.
+O `package.json` já está no formato que o Railway executa:
 
-1. **Neon:** crie um projeto e copie a connection string **direta** (sem
-   `-pooler`), com `sslmode=require`.
-2. **Render:** *New → Blueprint*, escolha este repositório. O `render.yaml`
-   define:
-   - build: `npm ci --include=dev && npm run build` (gera o Prisma Client e compila)
-   - start: `npx prisma migrate deploy && npm start` (aplica migrations pendentes e sobe a API)
-   - health check: `/health`
-3. Preencha no painel: `DATABASE_URL`, `GITHUB_CLIENT_ID`,
-   `GITHUB_CLIENT_SECRET`, `GITHUB_CALLBACK_URL`
-   (`https://SEU-BACKEND.onrender.com/auth/github/callback`) e `FRONTEND_URL`
-   (URL do frontend na Vercel ou no Render, sem `/` final). O `JWT_SECRET` é gerado pelo Render.
-4. **GitHub:** crie um OAuth App **de produção** com *Homepage URL* = URL do
-   frontend e *Authorization callback URL* = o mesmo valor de
-   `GITHUB_CALLBACK_URL`.
-5. Confira `https://SEU-BACKEND.onrender.com/health`.
+- build: `prisma generate && tsc`
+- start: `prisma migrate deploy && node dist/index.js` (aplica as migrations
+  pendentes e sobe a API)
+- `prisma` fica em `dependencies`, para o `migrate deploy` funcionar em produção.
 
-O HTTPS é fornecido pelo Render. O CORS aceita apenas a origem de
-`FRONTEND_URL`.
+Passos:
+
+1. **Railway:** *New Project → Deploy from GitHub repo* e escolha este
+   repositório. Em *Settings → Networking*, clique em **Generate Domain**.
+2. Em **Variables**, crie: `DATABASE_URL`, `JWT_SECRET` (valor aleatório
+   longo), `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GITHUB_CALLBACK_URL`
+   (`https://SEU-DOMINIO.up.railway.app/auth/github/callback`) e
+   `FRONTEND_URL` (URL do frontend na Vercel, sem `/` final). Não defina
+   `PORT`: o Railway informa sozinho.
+3. **GitHub:** no OAuth App de produção, *Authorization callback URL* = o
+   mesmo valor de `GITHUB_CALLBACK_URL`.
+4. **Vercel:** atualize `VITE_API_URL` no frontend com a URL do Railway e
+   faça um *Redeploy*.
+5. Confira `https://SEU-DOMINIO.up.railway.app/health`.
+
+O HTTPS é fornecido pelo Railway. O CORS aceita apenas a origem de
+`FRONTEND_URL`. Na conta gratuita, o serviço pode hibernar sem uso e o
+primeiro acesso depois disso demora alguns segundos.
+
+**Por que PostgreSQL e não SQLite:** o disco das hospedagens gratuitas é
+efêmero; um arquivo SQLite seria apagado a cada deploy ou reinício.
+
+**Alternativa:** o `render.yaml` permite publicar o mesmo backend no Render
+(*New → Blueprint*), com as mesmas variáveis.
 
 ## Limitações conhecidas (herdadas do projeto original)
 
